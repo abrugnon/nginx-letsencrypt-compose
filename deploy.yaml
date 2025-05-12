@@ -1,0 +1,64 @@
+- name: Setup and Launch Nginx proxy with SSL
+  hosts: 
+    all
+  vars:
+    cfg_dir: /var/lib/nginx
+    dryrun: false
+    # state of the compose stack (overload with -e 'state=stopped' ou 'absent' on the cmd line)
+    state: present
+
+  tasks:
+    - name: Create directory
+      file:
+        name: "{{ cfg_dir }}"
+        state: directory
+
+    - name: deploy Nginx config template
+      template:
+        src: proxy.conf.j2
+        dest: "{{ cfg_dir }}/proxy.conf"
+
+
+    - name: launch Nginx LetEncrypt SSL 
+      community.docker.docker_compose_v2:
+        project_name: nginx-ssl
+        definition:
+          services:
+            certbot-init:
+              image: certbot/certbot
+              entrypoint: /bin/sh
+              command: -c "test -d /etc/letsencrypt/live/{{ domains | first }} || certbot certonly --preferred-challenges http --standalone {% for domain in domains %} -d {{ domain }} {% endfor %}-m {{ email }} --no-eff-email --force-renewal --agree-tos {{ dryrun | bool | ternary ('--dry-run','') }}"
+              ports:
+                - 80:80
+              volumes:
+                - cert_volume:/etc/letsencrypt
+                - acme_challenge:/usr/share/nginx/html/.well-known
+            nginx:
+              image: nginx
+              entrypoint: /bin/sh
+              command: -c 'while :; do sleep 6h && wait $${!}; nginx -s reload; done & /docker-entrypoint.sh nginx -g "daemon off;error_log /dev/stdout debug;"'
+              ports:
+                - 80:80
+                - 443:443
+              volumes:
+                - "{{ cfg_dir }}:/etc/nginx/conf.d" # to configure nginx
+                - cert_volume:/etc/letsencrypt
+                - acme_challenge:/var/www/certbot
+
+              depends_on:
+                certbot-init:
+                  condition: service_completed_successfully
+            certbot-renew:
+              image: certbot/certbot
+              entrypoint: /bin/sh
+              command: -c 'trap exit TERM; while :; do certbot renew; sleep 24h && wait $${!}; done;'
+              depends_on:
+                nginx:
+                  condition: service_started
+              volumes:
+                - cert_volume:/etc/letsencrypt
+                - acme_challenge:/var/www/certbot
+          volumes:
+            cert_volume:
+            acme_challenge:
+        state: "{{ state }}"
