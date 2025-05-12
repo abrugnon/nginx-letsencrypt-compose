@@ -1,0 +1,13 @@
+all:
+  # clone and/or modify this file
+  hosts:
+    # ansible target where proxy stand
+    my-proxy-hostname
+  vars:
+      # email for Let's Encrypt registration
+      email: "your@email.com"
+      # list domain names and the associated proxy stanza
+      # all domains must resolve to your proxy host
+      domains:
+        first.host.com: "http://192.168.0.1:8123"
+        second.fqdn.fr: "http://192.168.0.8:80/path"
