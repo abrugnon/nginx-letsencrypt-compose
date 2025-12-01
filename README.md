@@ -1,8 +1,8 @@
 # nginx-letsencrypt-compose
 
-Automate Letencrypt SSL lifecycle with Nginx and docker compose (ansible drived deployment )
+Automate Letencrypt SSL lifecycle with Nginx and docker compose (ansible driven deployment )
 
-I need multi-domains certificates so i borrowed and tweaked some really nice scripts here : 
+I needed multi-domains certificates so i borrowed and tweaked some really nice scripts here : 
 
  - [For the idea](https://www.programonaut.com/setup-ssl-with-docker-nginx-and-lets-encrypt/)
  - [For the separation create/renew ](https://blog.jarrousse.org/2022/04/09/an-elegant-way-to-use-docker-compose-to-obtain-and-renew-a-lets-encrypt-ssl-certificate-with-certbot-and-configure-the-nginx-service-to-use-it/)
