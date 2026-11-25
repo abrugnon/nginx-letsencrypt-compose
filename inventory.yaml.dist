@@ -11,3 +11,5 @@ all:
       domains:
         first.host.com: "http://192.168.0.1:8123"
         second.fqdn.fr: "http://192.168.0.8:80/path"
+      certbot_version: v5.10.0
+      nginx_version: 1.31.10

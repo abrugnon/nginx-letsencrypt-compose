@@ -1,41 +1,46 @@
 - name: Setup and Launch Nginx proxy with SSL
-  hosts: 
+  hosts:
     all
   vars:
     cfg_dir: /var/lib/nginx
     dryrun: false
-    # state of the compose stack (overload with -e 'state=stopped' ou 'absent' on the cmd line)
+    # state of the compose stack (overload with -e 'state=stopped' or 'absent' on the cmd line)
     state: present
 
   tasks:
     - name: Create directory
-      file:
+      ansible.builtin.file:
         name: "{{ cfg_dir }}"
         state: directory
+        mode: "0755"
 
-    - name: deploy Nginx config template
-      template:
+    - name: Deploy Nginx config template
+      ansible.builtin.template:
         src: proxy.conf.j2
         dest: "{{ cfg_dir }}/proxy.conf"
+        mode: "0644"
 
-
-    - name: launch Nginx LetEncrypt SSL 
+    - name: Launch Nginx LetEncrypt SSL
       community.docker.docker_compose_v2:
         project_name: nginx-ssl
         definition:
           services:
             certbot-init:
-              image: certbot/certbot
+              image: "certbot/certbot:{{ certbot_version | default('latest') }}"
               entrypoint: /bin/sh
-              command: -c "test -d /etc/letsencrypt/live/{{ domains | first }} || certbot certonly --preferred-challenges http --standalone {% for domain in domains %} -d {{ domain }} {% endfor %}-m {{ email }} --no-eff-email --force-renewal --agree-tos {{ dryrun | bool | ternary ('--dry-run','') }}"
+              command: >-
+                -c "test -d /etc/letsencrypt/live/{{ domains | first }} || certbot certonly --preferred-challenges http --standalone
+                {% for domain in domains %} -d {{ domain }} {% endfor %}-m {{ email }} --no-eff-email --force-renewal --agree-tos
+                {{ dryrun | bool | ternary('--dry-run', '') }}"
               ports:
                 - 80:80
               volumes:
                 - cert_volume:/etc/letsencrypt
                 - acme_challenge:/usr/share/nginx/html/.well-known
             nginx:
-              image: nginx
+              image: "nginx:{{ nginx_version | default('latest') }}"
               entrypoint: /bin/sh
+              restart: always
               command: -c 'while :; do sleep 6h && wait $${!}; nginx -s reload; done & /docker-entrypoint.sh nginx -g "daemon off;error_log /dev/stdout error;"'
               ports:
                 - 80:80
@@ -49,8 +54,9 @@
                 certbot-init:
                   condition: service_completed_successfully
             certbot-renew:
-              image: certbot/certbot
+              image: "certbot/certbot:{{ certbot_version | default('latest') }}"
               entrypoint: /bin/sh
+              restart: always
               command: -c 'trap exit TERM; while :; do certbot renew --webroot --webroot-path /var/www/certbot/ ; sleep 24h && wait $${!}; done;'
               depends_on:
                 nginx:
